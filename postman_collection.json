@@ -1,0 +1,147 @@
+{
+  "info": {
+    "name": "DSC Time Server API",
+    "description": "API collection for authenticated time server with auto-registration",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5001",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        },
+        "description": "Simple health check endpoint - no authentication required"
+      },
+      "response": []
+    },
+    {
+      "name": "Get Signed Timestamp (Auto-register)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"machineHash\": \"DEVICE-12345\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/time",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "time"]
+        },
+        "description": "Gets a signed timestamp. Auto-registers device if not already registered.\n\nReturns:\n- server_time: ISO 8601 timestamp\n- epoch: Unix timestamp\n- device: Device identifier\n- signature: HMAC-SHA256 signature for authenticity"
+      },
+      "response": []
+    },
+    {
+      "name": "Generate JWT Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.collectionVariables.set(\"jwt_token\", jsonData.token);",
+              "    console.log(\"JWT token saved to collection variable\");",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"machineHash\": \"DEVICE-12345\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/generate-token",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "generate-token"]
+        },
+        "description": "Generate a JWT token for an existing registered device.\n\nRequires:\n- name, email, machineHash must match an existing Token record in database\n- Token must be active and not expired\n\nReturns:\n- token: JWT valid for 12 hours\n\nNote: This automatically saves the token to the collection variable for use in protected endpoints."
+      },
+      "response": []
+    },
+    {
+      "name": "Register Sign (Protected)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{jwt_token}}",
+            "description": "JWT token from generate-token endpoint"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": ""
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/sign",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "sign"]
+        },
+        "description": "Registers a sign operation and increments usage counter.\n\nRequires:\n- Valid JWT token in Authorization header\n- Device must have remaining signs (usedSigns < maxSigns)\n\nReturns:\n- msg: Success message\n- remaining: Number of signs remaining"
+      },
+      "response": []
+    },
+    {
+      "name": "Get Signed Timestamp (Different Device)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Jane Smith\",\n  \"email\": \"jane@company.com\",\n  \"machineHash\": \"DEVICE-XYZ-999\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/time",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "time"]
+        },
+        "description": "Example with a different device to show auto-registration for new devices."
+      },
+      "response": []
+    }
+  ]
+}
